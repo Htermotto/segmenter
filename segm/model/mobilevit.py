@@ -200,9 +200,10 @@ class MobileViTBlock(nn.Module):
 
 
 class MobileViT(nn.Module):
-    def __init__(self, image_size, dims, channels, num_classes, expansion=4, kernel_size=3, patch_size=(2, 2), n_cls=21, pretrained_path=None):
+    def __init__(self, image_size, dims, channels, num_classes, expansion=4, kernel_size=3, patch_size=(2, 2), n_cls=150, pretrained_path=None):
         super().__init__()
         self.pretrained_path = pretrained_path
+        print(f'MODEL ARGS: {channels}')
 
         self.patch_size = patch_size[0]
         self.n_cls = n_cls
@@ -246,10 +247,12 @@ class MobileViT(nn.Module):
         self.dl7 = conv_1x1_bn(1280, 256,activation="relu")
         self.dldrop = nn.Dropout(p=0.1, inplace=False)
 
-        output_classes = 21
+        output_classes = self.n_cls
         self.dlclassifier1 = nn.Dropout2d(p=0.1, inplace=False)
         self.dlclassifier2 = nn.Conv2d(256,output_classes,1,1)
         self.upsampled = nn.Upsample(scale_factor=16,mode="bilinear")
+        print(self)
+        self.init_weights(pretrained_path)
 
     def forward(self, x, return_features=False):
         H_ori, W_ori = x.size(2), x.size(3)
@@ -315,7 +318,15 @@ class MobileViT(nn.Module):
         model_loaded = torch.load(pretrained_path)
         loaded_weights = list(model_loaded.values())
         self_model = self.state_dict()
-        for i,key  in enumerate(self_model):
+
+        assert len(self_model) == len(loaded_weights)
+
+        last_dl_layer = len(loaded_weights)-2
+        for i, key in enumerate(self_model):
+          if key.startswith("dl1"):
+              print(f'breaking at key {key}')
+              break
+
           self_model[key] = loaded_weights[i]
         self.load_state_dict(self_model)
         print("ITS ALIVE")
