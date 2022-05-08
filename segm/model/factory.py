@@ -46,8 +46,10 @@ def create_vit(model_cfg):
 
     normalization = model_cfg.pop("normalization")
     model_cfg["n_cls"] = 1000
-    mlp_expansion_ratio = 4
-    model_cfg["d_ff"] = mlp_expansion_ratio * model_cfg["d_model"]
+
+    if backbone != "mobilevit":
+        mlp_expansion_ratio = 4
+        model_cfg["d_ff"] = mlp_expansion_ratio * model_cfg["d_model"]
 
     if backbone in default_cfgs:
         default_cfg = default_cfgs[backbone]
