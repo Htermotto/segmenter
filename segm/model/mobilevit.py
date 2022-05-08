@@ -161,6 +161,7 @@ class MobileViTBlock(nn.Module):
         self.conv4 = conv_nxn_bn(2 * channel, channel, kernel_size)
     
     def forward(self, x):
+        print(f'input to mobile vit block: {x.shape}')
         y = x.clone()
 
         # Local representations
@@ -178,6 +179,8 @@ class MobileViTBlock(nn.Module):
         x = self.conv3(x)
         x = torch.cat((x, y), 1)
         x = self.conv4(x)
+
+        print(f'output of mobile vit block: {x.shape}')
         return x
 
 
