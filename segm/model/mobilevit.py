@@ -167,6 +167,8 @@ class MobileViTBlock(nn.Module):
         super().__init__()
         self.ph, self.pw = patch_size
 
+        self.patch_size = self.ph
+
         self.conv1 = conv_nxn_bn(channel, channel, kernel_size)
         
         self.new_conv2 = nn.Conv2d(channel, dim, 1, 1, 0, bias=False)
