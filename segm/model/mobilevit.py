@@ -218,8 +218,8 @@ class MobileViT(nn.Module):
 
         self.conv2 = conv_1x1_bn(channels[-2], channels[-1])
 
-        # self.pool = nn.AvgPool2d(ih//32, 1)
-        # self.fc = nn.Linear(channels[-1], num_classes, bias=False)
+        self.pool = nn.AvgPool2d(ih//32, 1)
+        self.fc = nn.Linear(channels[-1], num_classes, bias=False)
 
     def forward(self, x, return_features=False):
         x = self.conv1(x)
@@ -274,4 +274,5 @@ def mobilevit_s():
     dims = [144, 192, 240]
     channels = [16, 32, 64, 64, 96, 96, 128, 128, 160, 160, 640]
     return MobileViT((256, 256), dims, channels, num_classes=1000)
+
 
