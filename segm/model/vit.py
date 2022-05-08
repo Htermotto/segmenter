@@ -130,10 +130,13 @@ class VisionTransformer(nn.Module):
         x = self.dropout(x)
 
         for blk in self.blocks:
+            print(f'going into block: {x.shape}')
             x = blk(x)
+            print(f'coming out of block: {x.shape}')
         x = self.norm(x)
 
         if return_features:
+            print(f'returning features of shape: {x.shape}')
             return x
 
         if self.distilled:
