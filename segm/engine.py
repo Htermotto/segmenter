@@ -31,6 +31,7 @@ def train_one_epoch(
 
         with amp_autocast():
             seg_pred = model.forward(im)
+            print(f'SEG PRED VALS: {seg_pred.min()}, {seg_pred.max()}') 
             loss = criterion(seg_pred, seg_gt)
 
         loss_value = loss.item()

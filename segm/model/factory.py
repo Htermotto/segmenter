@@ -119,6 +119,8 @@ def create_segmenter(model_cfg):
         model_cfg.pop('dropout')
         model_cfg.pop('drop_path_rate')
         model_cfg.pop('n_cls')
+        model_cfg.pop('normalization')
+        model_cfg.pop('backbone')
         model = MobileViT(**model_cfg)
     else:
         encoder = create_vit(model_cfg)

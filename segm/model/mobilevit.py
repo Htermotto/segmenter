@@ -5,6 +5,9 @@ from einops import rearrange
 from torch.nn.modules import activation
 from torch.nn.modules.conv import Conv2d
 from torch.nn.modules.normalization import LayerNorm
+import torch.nn.functional as F
+
+from segm.utils import padding, unpadding
 
 
 def conv_1x1_bn(inp, oup,activation="silu"):
@@ -197,9 +200,11 @@ class MobileViTBlock(nn.Module):
 
 
 class MobileViT(nn.Module):
-    def __init__(self, image_size, dims, channels, num_classes, expansion=4, kernel_size=3, patch_size=(2, 2), pretrained_path=None):
+    def __init__(self, image_size, dims, channels, num_classes, expansion=4, kernel_size=3, patch_size=(2, 2), n_cls=21, pretrained_path=None):
         super().__init__()
         self.pretrained_path = pretrained_path
+
+        self.n_cls = n_cls
 
         ih, iw = image_size
         ph, pw = patch_size
@@ -245,8 +250,11 @@ class MobileViT(nn.Module):
         self.dlclassifier2 = nn.Conv2d(256,output_classes,1,1)
         self.upsampled = nn.Upsample(scale_factor=16,mode="bilinear")
 
-
     def forward(self, x, return_features=False):
+        H_ori, W_ori = x.size(2), x.size(3)
+        x = padding(x, self.patch_size)
+        H, W = x.size(2), x.size(3)
+
         import copy 
         outputs = []
         x = self.conv1(x)
@@ -291,6 +299,9 @@ class MobileViT(nn.Module):
         x = self.dlclassifier1(x)
         x = self.dlclassifier2(x)
         x = self.upsampled(x)
+
+        x = F.interpolate(x, size=(H, W), mode="bilinear")
+        x = unpadding(x, (H_ori, W_ori))
 
         #x = self.conv2(x)
 

@@ -232,8 +232,8 @@ def main(
 
     print(f"Train dataset length: {len(train_loader.dataset)}")
     print(f"Val dataset length: {len(val_loader.dataset)}")
-    print(f"Encoder parameters: {num_params(model_without_ddp.encoder)}")
-    print(f"Decoder parameters: {num_params(model_without_ddp.decoder)}")
+    # print(f"Encoder parameters: {num_params(model_without_ddp.encoder)}")
+    # print(f"Decoder parameters: {num_params(model_without_ddp.decoder)}")
 
     for epoch in range(start_epoch, num_epochs):
         # train for one epoch
