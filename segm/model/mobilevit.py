@@ -261,7 +261,7 @@ class MobileViT(nn.Module):
 def mobilevit_xxs():
     dims = [64, 80, 96]
     channels = [16, 16, 24, 24, 48, 48, 64, 64, 80, 80, 320]
-    return MobileViT((512, 1024), dims, channels, num_classes=1000, expansion=2)
+    return MobileViT((256, 256), dims, channels, num_classes=1000, expansion=2)
 
 
 def mobilevit_xs():
