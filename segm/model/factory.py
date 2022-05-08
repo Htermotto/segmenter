@@ -86,6 +86,7 @@ def create_vit(model_cfg):
         else:
             load_custom_pretrained(model, default_cfg)
 
+    print(model)
     return model
 
 
