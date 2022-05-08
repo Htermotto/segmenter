@@ -98,7 +98,7 @@ model:
     image_size: [512,512]
     dims: [64, 80, 96]
     channels: [16, 16, 24, 24, 48, 48, 64, 64, 80, 80, 256]
-    num_classes: 1000
+    num_classes: 150
     pretrained_path: "pretrained_weights/deeplabv3_mobilevit_xxs.pt"
     normalization: vit
     expansion: 2
