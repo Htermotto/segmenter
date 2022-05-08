@@ -3,38 +3,23 @@ import torch.nn as nn
 
 from einops import rearrange
 from torch.nn.modules import activation
-from torch.nn.modules.conv import Conv2d
 from torch.nn.modules.normalization import LayerNorm
 
 
-def conv_1x1_bn(inp, oup,activation="silu"):
-    model =  nn.Sequential(
+def conv_1x1_bn(inp, oup):
+    return nn.Sequential(
         nn.Conv2d(inp, oup, 1, 1, 0, bias=False),
         nn.BatchNorm2d(oup),
+        nn.ReLU()
     )
-    if activation =="silu":
-      model.append(nn.SiLU())
-    elif activation=="relu":
-      model.append(nn.ReLU())
-    return model
 
 
-def conv_nxn_bn(inp, oup, kernal_size=3, stride=1,dilation=None,activation="silu",padding=1):
-    if dilation:
-      model = nn.Sequential(
-          nn.Conv2d(inp, oup, kernal_size, stride, padding, bias=False,dilation=dilation),
-          nn.BatchNorm2d(oup),
-      )
-    else:
-      model = nn.Sequential(
-          nn.Conv2d(inp, oup, kernal_size, stride, padding, bias=False),
-          nn.BatchNorm2d(oup),
-      )
-    if activation=="silu":
-      model.append(nn.SiLU())
-    elif activation =="relu":
-      model.append(nn.ReLU())
-    return model
+def conv_nxn_bn(inp, oup, kernal_size=3, stride=1):
+    return nn.Sequential(
+        nn.Conv2d(inp, oup, kernal_size, stride, 1, bias=False),
+        nn.BatchNorm2d(oup),
+        nn.ReLU()
+    )
 
 
 class PreNorm(nn.Module):
@@ -52,7 +37,7 @@ class FeedForward(nn.Module):
         super().__init__()
         self.net = nn.Sequential(
             nn.Linear(dim, hidden_dim),
-            nn.SiLU(),
+            nn.ReLU(),
             nn.Dropout(dropout),
             nn.Linear(hidden_dim, dim),
             nn.Dropout(dropout)
@@ -121,7 +106,7 @@ class MV2Block(nn.Module):
                 # dw
                 nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=1, bias=False),
                 nn.BatchNorm2d(hidden_dim),
-                nn.SiLU(inplace=True),
+                nn.ReLU(inplace=True),
                 # pw-linear
                 nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(oup),
@@ -142,11 +127,11 @@ class MV2Block(nn.Module):
                 # pw
                 nn.Conv2d(inp, hidden_dim, kernel_size, 1, 0, bias=False),
                 nn.BatchNorm2d(hidden_dim),
-                nn.SiLU(),
+                nn.ReLU(),
                 # dw
                 nn.Conv2d(hidden_dim, second_hidden_dim, second_kernel_size, stride, 1, groups=groups, bias=False),
                 nn.BatchNorm2d(second_hidden_dim),
-                nn.SiLU(),
+                nn.ReLU(),
                 # pw-linear
                 nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
                 nn.BatchNorm2d(oup),
@@ -176,6 +161,7 @@ class MobileViTBlock(nn.Module):
         self.conv4 = conv_nxn_bn(2 * channel, channel, kernel_size)
     
     def forward(self, x):
+        print(f'input to mobile vit block: {x.shape}')
         y = x.clone()
 
         # Local representations
@@ -185,14 +171,18 @@ class MobileViTBlock(nn.Module):
         # Global representations
         _, _, h, w = x.shape
         x = rearrange(x, 'b d (h ph) (w pw) -> b (ph pw) (h w) d', ph=self.ph, pw=self.pw)
+        print(f'shape after rearrange: {x.shape}')
         x = self.transformer(x)
         x = self.prenorm(x)
         x = rearrange(x, 'b (ph pw) (h w) d -> b d (h ph) (w pw)', h=h//self.ph, w=w//self.pw, ph=self.ph, pw=self.pw)
+        print(f'shape after rearrange: {x.shape}')
 
         # Fusion
         x = self.conv3(x)
         x = torch.cat((x, y), 1)
         x = self.conv4(x)
+
+        print(f'output of mobile vit block: {x.shape}')
         return x
 
 
@@ -200,6 +190,9 @@ class MobileViT(nn.Module):
     def __init__(self, image_size, dims, channels, num_classes, expansion=4, kernel_size=3, patch_size=(2, 2), pretrained_path=None):
         super().__init__()
         self.pretrained_path = pretrained_path
+        self.distilled = False
+
+        self.patch_size = patch_size[0]
 
         ih, iw = image_size
         ph, pw = patch_size
@@ -220,82 +213,40 @@ class MobileViT(nn.Module):
         self.mv6 = MV2Block(channels[5], channels[6], 2, expansion) #,kernel_size=3,print_flag=True))
         self.mvit2 = MobileViTBlock(dims[1], L[1], channels[7], kernel_size, patch_size, int(dims[1]*2))
        
-        self.mv7 = MV2Block(channels[7], channels[8], 1, expansion)
+        self.mv7 = MV2Block(channels[7], channels[8], 2, expansion)
         
         #self.mvit = nn.ModuleList([])
         self.mvit3 = MobileViTBlock(dims[2], L[2], channels[9], kernel_size, patch_size, int(dims[2]*2))
-        #this layer is actually not used...
-        #self.conv2 = conv_1x1_bn(channels[-2], channels[-1])
 
-        # self.pool = nn.AvgPool2d(ih//32, 1)
-        # self.fc = nn.Linear(channels[-1], num_classes, bias=False)
+        self.conv2 = conv_1x1_bn(channels[-2], channels[-1])
 
-        #Deeplab part:
-        self.dl1 = conv_1x1_bn(80, 256,activation="relu")
-        self.dl2 = conv_nxn_bn(80, 256, kernal_size=3,activation="relu",dilation=6,padding=6)
-        self.dl3 = conv_nxn_bn(80, 256, kernal_size=3,activation="relu",dilation=12,padding=12)
-        self.dl4 = conv_nxn_bn(80, 256, kernal_size=3,activation="relu",dilation=18,padding=18)
-        self.dl5 = nn.AdaptiveAvgPool2d(1)
-        self.dl6 = conv_1x1_bn(80, 256,activation="relu")
-        self.dl7 = conv_1x1_bn(1280, 256,activation="relu")
-        self.dldrop = nn.Dropout(p=0.1, inplace=False)
-
-        output_classes = 21
-        self.dlclassifier1 = nn.Dropout2d(p=0.1, inplace=False)
-        self.dlclassifier2 = nn.Conv2d(256,output_classes,1,1)
-        self.upsampled = nn.Upsample(scale_factor=16,mode="bilinear")
-
+        self.pool = nn.AvgPool2d(ih//32, 1)
+        self.fc = nn.Linear(channels[-1], num_classes, bias=False)
 
     def forward(self, x, return_features=False):
-        import copy 
-        outputs = []
         x = self.conv1(x)
-
         x = self.mv1(x)
-        outputs.append(copy.copy(x))
 
         x = self.mv2(x)
         x = self.mv3(x)
         x = self.mv4(x)      # Repeat
-        outputs.append(copy.copy(x))
 
         x = self.mv5(x)
         x = self.mvit1(x)
-        outputs.append(copy.copy(x))
 
         x = self.mv6(x)
         x = self.mvit2(x)
-        outputs.append(copy.copy(x))
 
         x = self.mv7(x)
         x = self.mvit3(x)
-        outputs.append(copy.copy(x))
+        x = self.conv2(x)
 
-        #pass through ASPP:
-        aspps = []
-        aspps.append(self.dl1(x))
-        aspps.append(self.dl2(x))
-        aspps.append(self.dl3(x))
-        aspps.append(self.dl4(x))
-        x_size = x.shape[-2:]
-        pooled = self.dl5(x)
-        pooled = self.dl6(pooled)
+        if return_features:
+            return x
 
-        aspps.append(nn.functional.interpolate(pooled, size=x_size, mode="bilinear", align_corners=False))
-        aspps = torch.cat(aspps, dim=1)
-        #x = self.dl6()
-        x = self.dl7(aspps)
-        x = self.dldrop(x)
-        
-        #classify
-        x = self.dlclassifier1(x)
-        x = self.dlclassifier2(x)
-        x = self.upsampled(x)
+        x = self.pool(x).view(-1, x.shape[1])
+        x = self.fc(x)
 
-        #x = self.conv2(x)
-
-        # x = self.pool(x).view(-1, x.shape[1])
-        # x = self.fc(x)
         return x
 
     def init_weights(self, pretrained_path=None):
@@ -311,8 +262,8 @@ class MobileViT(nn.Module):
 
 def mobilevit_xxs():
     dims = [64, 80, 96]
-    channels = [16, 16, 24, 24, 48, 48, 64, 64, 80, 80, 256]
-    return MobileViT((512, 512), dims, channels, num_classes=1000, expansion=2)
+    channels = [16, 16, 24, 24, 48, 48, 64, 64, 80, 80, 320]
+    return MobileViT((256, 256), dims, channels, num_classes=1000, expansion=2)
 
 
 def mobilevit_xs():
@@ -325,4 +276,5 @@ def mobilevit_s():
     dims = [144, 192, 240]
     channels = [16, 32, 64, 64, 96, 96, 128, 128, 160, 160, 640]
     return MobileViT((256, 256), dims, channels, num_classes=1000)
+
 

@@ -115,9 +115,15 @@ def create_segmenter(model_cfg):
     decoder_cfg = model_cfg.pop("decoder")
     decoder_cfg["n_cls"] = model_cfg["n_cls"]
 
-    encoder = create_vit(model_cfg)
-    decoder = create_decoder(encoder, decoder_cfg)
-    model = Segmenter(encoder, decoder, n_cls=model_cfg["n_cls"])
+    if model_cfg['backbone'] == 'mobilevit':
+        model_cfg.pop('dropout')
+        model_cfg.pop('drop_path_rate')
+        model_cfg.pop('n_cls')
+        model = MobileViT(**model_cfg)
+    else:
+        encoder = create_vit(model_cfg)
+        decoder = create_decoder(encoder, decoder_cfg)
+        model = Segmenter(encoder, decoder, n_cls=model_cfg["n_cls"])
 
     return model
 
