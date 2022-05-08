@@ -17,7 +17,7 @@ from segm.model.decoder import MaskTransformer
 from segm.model.segmenter import Segmenter
 import segm.utils.torch as ptu
 
-from mobilevit import MobileViT
+from .mobilevit import MobileViT
 
 @register_model
 def vit_base_patch8_384(pretrained=False, **kwargs):
