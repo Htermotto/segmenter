@@ -45,6 +45,7 @@ class Segmenter(nn.Module):
         masks = F.interpolate(masks, size=(H, W), mode="bilinear")
         masks = unpadding(masks, (H_ori, W_ori))
 
+        print(f'Returning masks shape: {masks.shape}')
         return masks
 
     def get_attention_map_enc(self, im, layer_id):

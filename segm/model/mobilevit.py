@@ -7,7 +7,7 @@ from torch.nn.modules.conv import Conv2d
 from torch.nn.modules.normalization import LayerNorm
 import torch.nn.functional as F
 
-from segm.utils import padding, unpadding
+from .utils import padding, unpadding
 
 
 def conv_1x1_bn(inp, oup,activation="silu"):
