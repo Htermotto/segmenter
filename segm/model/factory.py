@@ -69,6 +69,10 @@ def create_vit(model_cfg):
     )
 
     if backbone == 'mobilevit':
+        print(model_cfg)
+        model_cfg.pop('dropout')
+        model_cfg.pop('drop_path_rate')
+        model_cfg.pop('n_cls')
         model = MobileViT(**model_cfg)
     else:
         model = VisionTransformer(**model_cfg)

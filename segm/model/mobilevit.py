@@ -185,6 +185,9 @@ class MobileViT(nn.Module):
     def __init__(self, image_size, dims, channels, num_classes, expansion=4, kernel_size=3, patch_size=(2, 2), pretrained_path=None):
         super().__init__()
         self.pretrained_path = pretrained_path
+        self.distilled = False
+
+        self.patch_size = patch_size[0]
 
         ih, iw = image_size
         ph, pw = patch_size
@@ -215,7 +218,7 @@ class MobileViT(nn.Module):
         # self.pool = nn.AvgPool2d(ih//32, 1)
         # self.fc = nn.Linear(channels[-1], num_classes, bias=False)
 
-    def forward(self, x):
+    def forward(self, x, return_features=False):
         x = self.conv1(x)
         x = self.mv1(x)
 
@@ -233,8 +236,12 @@ class MobileViT(nn.Module):
         x = self.mvit3(x)
         x = self.conv2(x)
 
-        # x = self.pool(x).view(-1, x.shape[1])
-        # x = self.fc(x)
+        if return_features:
+            return x
+
+        x = self.pool(x).view(-1, x.shape[1])
+        x = self.fc(x)
+
         return x
 
     def init_weights(self, pretrained_path=None):
