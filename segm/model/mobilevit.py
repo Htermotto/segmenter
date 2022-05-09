@@ -326,7 +326,6 @@ class MobileViT(nn.Module):
 
         assert len(self_model) == len(loaded_weights)
 
-        last_dl_layer = len(loaded_weights)-2
         for i, key in enumerate(self_model):
           if key.startswith("dl1"):
               print(f'breaking at key {key}')
