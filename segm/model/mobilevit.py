@@ -256,7 +256,7 @@ class MobileViT(nn.Module):
         self.dlclassifier1 = nn.Dropout2d(p=0.1, inplace=False)
         self.dlclassifier2 = nn.Conv2d(256,output_classes,1,1)
         self.upsampled = nn.Upsample(scale_factor=16,mode="bilinear")
-        print(self)
+
         self.init_weights(pretrained_path)
 
     def forward(self, x, return_features=False):
