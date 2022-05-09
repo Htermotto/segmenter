@@ -9,6 +9,9 @@ import torch.nn.functional as F
 
 from .utils import padding, unpadding
 
+import mmcv
+import numpy as np
+
 
 def conv_1x1_bn(inp, oup,activation="silu"):
     model =  nn.Sequential(
@@ -238,12 +241,14 @@ class MobileViT(nn.Module):
         # self.fc = nn.Linear(channels[-1], num_classes, bias=False)
 
         #Deeplab part:
-        self.dl1 = conv_1x1_bn(80, 256,activation="relu")
-        self.dl2 = conv_nxn_bn(80, 256, kernal_size=3,activation="relu",dilation=6,padding=6)
-        self.dl3 = conv_nxn_bn(80, 256, kernal_size=3,activation="relu",dilation=12,padding=12)
-        self.dl4 = conv_nxn_bn(80, 256, kernal_size=3,activation="relu",dilation=18,padding=18)
+
+        decoder_channels = channels[-2]
+        self.dl1 = conv_1x1_bn(decoder_channels, 256, activation="relu")
+        self.dl2 = conv_nxn_bn(decoder_channels, 256, kernal_size=3, activation="relu", dilation=6, padding=6)
+        self.dl3 = conv_nxn_bn(decoder_channels, 256, kernal_size=3, activation="relu", dilation=12, padding=12)
+        self.dl4 = conv_nxn_bn(decoder_channels, 256, kernal_size=3, activation="relu", dilation=18, padding=18)
         self.dl5 = nn.AdaptiveAvgPool2d(1)
-        self.dl6 = conv_1x1_bn(80, 256,activation="relu")
+        self.dl6 = conv_1x1_bn(decoder_channels, 256,activation="relu")
         self.dl7 = conv_1x1_bn(1280, 256,activation="relu")
         self.dldrop = nn.Dropout(p=0.1, inplace=False)
 
@@ -330,6 +335,83 @@ class MobileViT(nn.Module):
           self_model[key] = loaded_weights[i]
         self.load_state_dict(self_model)
         print("ITS ALIVE")
+
+
+    def show_result(self,
+                    img,
+                    result,
+                    palette=None,
+                    win_name='',
+                    show=False,
+                    wait_time=0,
+                    out_file=None,
+                    opacity=0.5):
+        """Draw `result` over `img`.
+        Args:
+            img (str or Tensor): The image to be displayed.
+            result (Tensor): The semantic segmentation results to draw over
+                `img`.
+            palette (list[list[int]]] | np.ndarray | None): The palette of
+                segmentation map. If None is given, random palette will be
+                generated. Default: None
+            win_name (str): The window name.
+            wait_time (int): Value of waitKey param.
+                Default: 0.
+            show (bool): Whether to show the image.
+                Default: False.
+            out_file (str or None): The filename to write the image.
+                Default: None.
+            opacity(float): Opacity of painted segmentation map.
+                Default 0.5.
+                Must be in (0, 1] range.
+        Returns:
+            img (Tensor): Only if not `show` or `out_file`
+        """
+        img = mmcv.imread(img)
+        img = img.copy()
+        seg = result[0]
+        if palette is None:
+            if self.PALETTE is None:
+                # Get random state before set seed,
+                # and restore random state later.
+                # It will prevent loss of randomness, as the palette
+                # may be different in each iteration if not specified.
+                # See: https://github.com/open-mmlab/mmdetection/issues/5844
+                state = np.random.get_state()
+                np.random.seed(42)
+                # random palette
+                palette = np.random.randint(
+                    0, 255, size=(len(self.n_cls), 3))
+                np.random.set_state(state)
+            else:
+                palette = self.PALETTE
+        palette = np.array(palette)
+        assert palette.shape[0] == len(self.n_cls)
+        assert palette.shape[1] == 3
+        assert len(palette.shape) == 2
+        assert 0 < opacity <= 1.0
+        color_seg = np.zeros((seg.shape[0], seg.shape[1], 3), dtype=np.uint8)
+        for label, color in enumerate(palette):
+            color_seg[seg == label, :] = color
+
+        # convert to BGR
+        color_seg = color_seg[..., ::-1]
+
+        img = img * (1 - opacity) + color_seg * opacity
+        img = img.astype(np.uint8)
+        # if out_file specified, do not show image in window
+        if out_file is not None:
+            show = False
+
+        if show:
+            mmcv.imshow(img, win_name, wait_time)
+        if out_file is not None:
+            mmcv.imwrite(img, out_file)
+
+        if not (show or out_file):
+            print('show==False and out_file is not specified, only '
+                          'result image will be returned')
+            return img
 
 
 def mobilevit_xxs():
