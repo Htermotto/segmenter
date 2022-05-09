@@ -94,7 +94,7 @@ model:
     n_heads: 16
     n_layers: 24
     normalization: vit
-  mobilevit:
+  mobilevit_xxs:
     image_size: [512,512]
     dims: [64, 80, 96]
     channels: [16, 16, 24, 24, 48, 48, 64, 64, 80, 80, 256]
@@ -102,6 +102,22 @@ model:
     pretrained_path: "pretrained_weights/deeplabv3_mobilevit_xxs.pt"
     normalization: vit
     expansion: 2
+  mobilevit_xs:
+    image_size: [512,512]
+    dims: [96, 120, 144]
+    channels: [16, 32, 48, 48, 64, 64, 80, 80, 96, 96, 384]
+    num_classes: 150
+    pretrained_path: "pretrained_weights/deeplabv3_mobilevit_xs.pt"
+    normalization: vit
+    expansion: 4
+  mobilevit_s:
+    image_size: [512,512]
+    dims: [144, 192, 240]
+    channels: [16, 32, 64, 64, 96, 96, 128, 128, 160, 160, 640]
+    num_classes: 150
+    pretrained_path: "pretrained_weights/deeplabv3_mobilevit_s.pt"
+    normalization: vit
+    expansion: 4
 decoder:
   linear: {}
   deeplab_dec:
